@@ -1,28 +1,21 @@
 const express = require('express')
 const router = express.Router()
-const {userRegister, userLogin,logoutUser, getAllUser} = require('../constrollers/userController');
-const {allocateLeads} = require('../constrollers/leadsController');
-const{data} = require('../constrollers/file')
-// var multer = require('multer')
+const {userRegister, userLogin,logoutUser, getAllUser,} = require('../constrollers/userController');
+const {allocateLeads , reAllocateLeads,getLeads,getLeadsByEmployeeId,getSingleLeads,leadsStatus, updateStatus} = require('../constrollers/leadsController');
 
-// var storage = multer.diskStorage({
-//     destination: function (req, file, cb) {
-//       cb(null, 'uploads');
-//     },
-//     filename: function (req, file, cb) {
-//       cb(null, file.fieldname + '-' + Date.now());
-//     },
-//   });
-  
-//   var upload = multer({ storage: storage });
 // Employee router
 router.post('/userRegister', userRegister);
 router.post('/userLogin', userLogin);
 router.get('/userLogout', logoutUser);
 router.get('/getUser', getAllUser)
+// Leads Router
+router.post('/task', allocateLeads);
+router.post('/reAllocate/:id', reAllocateLeads);
+router.get('/getLeads', getLeads);
+router.get('/getLeadsById',getLeadsByEmployeeId)
+router.get('/getSingleLeads', getSingleLeads)
+router.get('/:status', leadsStatus);
+router.put('/updateStatus/:id', updateStatus)
 
-router.post('/task', allocateLeads)
-
-//router.post('/data',upload.single('file'),data );
 
 module.exports = router;

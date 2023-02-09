@@ -92,7 +92,7 @@ const getAllUser = async (req,res)=>{
     res.send(data)
 }
 
-const allocateTask = async(req,res)=>{
+const allocateLeads = async(req,res)=>{
 let clientLeads = req.body.task
 let arr = []
 clientLeads.map((ele)=>{
@@ -106,13 +106,16 @@ clientLeads.map((ele)=>{
 });
 let numberOfTask = arr.length;
 let employee = await Users.find()//.count()
-let numberOfEmp = employee.length
-let splitTask = numberOfTask/numberOfEmp
+let numberOfEmp = employee.length;
+let splitTask = numberOfTask/numberOfEmp;
 let newTask = [];
 var id = 0;
 for(let i =0; i<numberOfTask; i++){
+    // let employeeName = employee.map((ele)=>{
+    //     return ele.name
+    // })
+    console.log(employee[i]._id  )
     let userId = id%100;
-    console.log(userId)
     if(splitTask%1 !==0){
         newTask.push(arr[i])
         if(newTask.length ==1){
@@ -138,4 +141,4 @@ let userId = req.body
 //let arr = [{"task":1},{"task":2},{"task":3},{"task":5},{"task":6},{"task":7},{"task":8},{"task":9},{"task":10},{"task":11},{"task":12}]
 
 
-module.exports = {userRegister,userLogin,logoutUser, getAllUser};
+module.exports = {userRegister,userLogin,logoutUser, getAllUser, allocateLeads};

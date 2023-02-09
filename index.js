@@ -4,7 +4,7 @@ const route = require('./src/routes/route');
 const socket = require('socket.io');
 const multer = require('multer')
 const app = express()
-
+mongoose.set('strictQuery', false);
 app.use(express.json());
 app.use(multer().any())
 
