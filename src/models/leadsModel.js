@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const leadsSchema = new mongoose.Schema({
     employeeId: {
-        type: String
+        type: Number
     },
     assignTo: {
         type: String

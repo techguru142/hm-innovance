@@ -1,144 +1,230 @@
-const { isValidRequest, isValidEmail, isValidPwd, isValidPhone } = require('../utills/validation')
-const Users = require('../models/userModel');
-const conversation = require('../models/conversationModel');
-const Admin = require('../models/adminSchema')
+const Users = require('../models/userModel')
+const Admin = require('../models/adminModel');
+
 const bcrypt = require('bcrypt');
 const cookie = require('cookie');
+const nodemailer = require('nodemailer');
+const jwt = require('jsonwebtoken');
 
 
 
-// register Users
+const isValidPwd = function (Password) {                                                  
+    return /^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-]).{8,15}$/.test(Password)
+}
 
-const userRegister = async(req,res)=>{
-   try {
-    const newUser = req.body
-    let {name, email, mobile, password} = newUser
-    
-    if(!name || !email || !mobile || !password || !isValidRequest(newUser)){
-        return res.status(400).send({status:false, Message:"All fields are required"})
-    }
-    const isUsed = await Users.findOne({email:email})
-    if(isUsed){
-        return res.status(409).send({status:false, Message:"This email is already used"})
-    }
-    if(!isValidEmail(email)){
-        return res.status(400).send({status:false, Message:`Invalalid email ${email}`})
-    }else if(!isValidPhone(mobile)){
-        return res.status(400).send({status:false, Message:`Invalid mobile Number ${mobile}`})
-    }else if(!isValidPwd(password)){
-        return res.status(400).send({status:false, Message:"Password should be strong"})
-    }
-    password = await bcrypt.hashSync(newUser.password, 10)
-    const savedUser = await Users.create(newUser)
-    res.status(201).send({status:true, savedUser})
+const isEmail = function (email) {
+    var emailFormat = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
+    if (email !== '' && email.match(emailFormat)) { return true; }
 
-   } catch (error) {
-    res.status(500).send({status:false, Error:error.message})
-   }
-};
+    return false;
+}
+const userRegister = async (req, res) => {
+    try {
+        const userInfo = req.body
+        const { name, email, mobile, password } = userInfo
 
-const userLogin = async(req,res)=>{
-    const registeredUser = req.body
-    const{email,password} = registeredUser
-    if(!email || !password){
-        return res.status(400).send({status:false, message:"Email and Password is required"})
-    }
-    const isValidUser = await Users.findOne({email:email})
-    if(!isValidUser){
-        res.status(403).send({status:false, message:"Invalid email or password"})
-    }
-    const validateUser = await bcrypt.compare(password, isValidUser.password);
-    if (!validateUser) {
-        return res
-            .status(401)
-            .send({ status: false, message: "Incorrect password" });
-    }
-    const senderId = isValidUser._id.valueOf()
-    const admin = await Admin.find()
-    const adminId = admin[0]._id.valueOf()
-    const addConversation = await conversation.create({members:[senderId, adminId]})
-    const token = jwt.sign(
-        {
-            userId:isValidUser._id
-        },
-        "if you challenge me, I can beet you"
-    );
-    if(isValidUser.tokens ===  undefined || isValidUser.tokens == ""){
-        let loggedInUser = await Users.findOneAndUpdate({email:email},{tokens:token})
-        res.setHeader("x-api-key", token);
-       res.cookie("access_token", token, {
-        httpOnly: true,
-        //secure: process.env.NODE_ENV === "production",
-      })
-        }else{
-            return res.status(401).send("You are already loggedin")
+        if (Object.keys(req.body).length == 0) return res.status(400).send({ status: false, msg: "please enter a data in request body" })
+
+        /*------------------------------Validation for name--------------------------------*/
+        if (!name)
+            return res.status(400).send({ status: false, msg: "Name is missing" })
+
+        if (!isNaN(name)) return res.status(400).send({ status: false, msg: " Please enter valid userName as a String" });
+
+        /*------------------------------Validation for Email--------------------------------*/
+        if (typeof email !== "string") return res.status(400).send({ status: false, msg: " Please enter  email as a String" });
+        if (!isEmail(email)) { return res.status(400).send({ status: false, msg: "Enter valid Email." }) }
+
+        const emailUnique = await Users.findOne({ email: email })
+        if (emailUnique) {
+            return res.status(400).send({ status: false, msg: "eamil is alreday exist" })
         }
 
-    return res.status(200).send({status:true,message:"Login successfull!"})
+        /*------------------------------Validation for Mobile--------------------------------*/
+
+        if (!mobile)
+            return res.status(400).send({ status: false, msg: "mobile is missing" })
+
+        if (!/^(\+\d{1,3}[- ]?)?\d{10}$/.test(mobile)) {
+            return res.status(400).send({ status: false, msg: " please enter Phone_number" })
+        }
+        /*------------------------------Validation for password--------------------------------*/
+
+        if (!password)
+            return res.status(400).send({ status: false, msg: "password is missing" })
+        if (!(password.length > 6 && password.length < 16)) return res.status(400).send({ status: false, msg: "password should be greater than 6 and less then 16 " })
+
+
+        if (!isValidPwd(password)) { return res.status(400).send({ status: false, msg: "Enter valid password." }) }
+        //-----------[Password encryption]
+        const bcryptPassword = await bcrypt.hash(password, 10)
+        userInfo.password = bcryptPassword
+
+        const saveduserInfo = await Users.create(userInfo)
+        res.status(200).send({ status: true, saveduserInfo })
+    } catch (err) {
+        return res.status(500).send({ status: false, error: err.message })
+    }
 }
 
-const logoutUser = async(req,res)=>{
+
+
+const userLogin=async(req,res)=>{
     try {
-        const token = req.cookies.access_token;
-        const isLoggedIn = await Users.findOneAndUpdate({tokens:token},{tokens:""}, {new:true})
-        return res.clearCookie("access_token", token).status(200).send("logOut successfully")
-      } catch (error) {
-        res.send(error)
-      }
+        
+        let validUser=await Users.findOne({"email":req.body.email})
+        if(!validUser){
+        res.status(500).json("invalid user")
+         return;
+        }
+        else{
+            if(await bcrypt.compare(req.body.password,validUser.password)){
+                let jwtSecretKey = "abvd123";
+                let data = {
+                   
+                    userId: validUser._id,
+                }
+              
+                const token = jwt.sign(data, jwtSecretKey);
+            //   res.cookie("token",token)
+
+
+             // req.session.token =token;
+            // let setinsessons=req.session.token
+           //  console.log(setinsessons)
+          //   console.log(setinsessons)
+         // req.session.save();
+             // sessionStorage.setItem('token',token);
+
+            
+                res.send({
+                    name:validUser.name,
+                    email:validUser.email,
+                    mobile:validUser.mobile,
+                    token:token
+                })
+            }else{
+                res.status(500).send({status:false, message:"invalid credentials"})
+            }
+        }
+    } catch (error) {
+        res.status(500).json("err")
+    } 
 }
 
-const getAllUser = async (req,res)=>{
+
+
+const logoutUser = async (req, res) => {
+    try {
+       res.clearCookie("token")
+
+    //res.sessionStorage.destroy('token')
+    res.json("sucessful logout")
+    } catch (error) {
+        res.status(500).send(error)
+    }
+}
+
+const getAllUser = async (req, res) => {
     const data = await Users.find()
     res.send(data)
 }
 
-const allocateLeads = async(req,res)=>{
-let clientLeads = req.body.task
-let arr = []
-clientLeads.map((ele)=>{
-    let obj = {
-        name:ele.name,
-        email:ele.name,
-        message:ele.message
+const userEmailsend=async (req,res)=>{
+    let email=req.body.eamil;
+    let data=await Users.findOne({ email: email })
+
+    if(!data){
+     return res.status(400).send({ status: false, msg: "Plz enter valid email ID" })
     }
-    arr.push(obj)
+ 
+    var transporter = nodemailer.createTransport({
+     service: 'gmail',
+     auth: {
+       user: "pspkbabul@gmail.com",
+       pass: "lfohzyyhxncujpbl"
+     }
+   });
+   let otpnum= Math.floor(1000+Math.random()*9000)
+    let addotp = await Users.findOneAndUpdate({email:email},{$set:{otp:otpnum}})
     
-});
-let numberOfTask = arr.length;
-let employee = await Users.find()//.count()
-let numberOfEmp = employee.length;
-let splitTask = numberOfTask/numberOfEmp;
-let newTask = [];
-var id = 0;
-for(let i =0; i<numberOfTask; i++){
-    // let employeeName = employee.map((ele)=>{
-    //     return ele.name
-    // })
-    console.log(employee[i]._id  )
-    let userId = id%100;
-    if(splitTask%1 !==0){
-        newTask.push(arr[i])
-        if(newTask.length ==1){
-            await Users.findOneAndUpdate({id:userId},{$push:{task:newTask}})
+ //    console.log(addotp)
+ //   console.log(otp)
+      var mailOptions = {
+     from: "pspkbabul@gmail.com",
+     to: "gurucharan@hminnovance.com",
+     subject:"Reset Password OTP",
+     text: `Your reset password OTP is ${otpnum}`
+   };
+ 
+ 
+   transporter.sendMail(mailOptions, function(error,info){
+     if (error) {
+       res.status(403).send(error);
+     } else {
+      res.status(200).send(info)
+     }
+   });
+ }
+
+const Userverfiypassword = async (req, res) => {
+    try{
+   let otp=req.body.otp;
+   let email=req.body.email;
+   if (Object.keys(req.body).length == 0) return res.status(400).send({ status: false, msg: "please enter a data in request body" })
+   let isuser=await Users.findOne({email:email})
+   if(!isuser) 
+   return res.status(404).send({status:false,message:"Account not found for this email"})
+   if(otp!==isuser.otp){
+    return res.status(403).send({status:false, message:"Invalid otp"})
+}else{
+    return res.send({status:true, message:"OTP verified successfully"})
+}
+}
+catch (err) { return res.status(500).send({ status: false, msg: err.massage }) 
+}
+}
+
+// Users
+   
+const Userchangepassword= async (req, res) => {
+
+    try{
+        if (Object.keys(req.body).length == 0) return res.status(400).send({ status: false, msg: "please enter a data in request body" })
+        let email=req.body.email;
+        let password=req.body.password;
+        if(!password){
+            return res.status(400).send({ status: false, msg: "password is missing" })
         }
-    }else{
-        newTask.push(arr[i])
-    if(newTask.length == splitTask){
-        await Users.findOneAndUpdate({id:userId},{$push:{task:newTask}})
-        id++;
-        newTask =[]
-    }
-    }
+        if (!password)
+        return res.status(400).send({ status: false, msg: "password is missing" })
+       if (!(password.length > 6 && password.length < 16)) return res.status(400).send({ status: false, msg: "password should be greater than 6 and less then 16 " })
+        //-----------[Password encryption]
+        const bcryptPassword = await bcrypt.hash(password, 10)
+        let changepassword=await Users.findOneAndUpdate({email:email},
+            {$set:{password:bcryptPassword,Timewhenyouupadted: new Date()}}
+            )
+           res.status(200).send({ status: true, data: `succesfully password updated ${changepassword}`});
+        }
+        catch (err) { return res.status(500).send({ status: false, msg: err.massage }) }
+   
 }
 
-let userTask = await Users.find()
-res.send({task:userTask})
-};
+const Usergenereate= async (req, res) => {
+    try{
+        let Usersid=req.body.employerid
+        if (!isNumberstring(Usersid)) { return res.status(400).send({ status: false, msg: "Enter valid employer Id it may consists number or string." }) }
+        
+        const uniqueUsersId = await Users.findOne({Usersid: Usersid })
+        if ( uniqueUsersId) {
+            return res.status(400).send({ status: false, msg: "This emplpyer Id is already Present " })
+        }
+        const savedUserId = await Users.create({Usersid:Usersid})
+        res.status(200).send({ status: true,savedUserId})
 
-const reAllocateTask = async(req,res)=>{
-let userId = req.body
+
+    }
+ catch (err) { return res.status(500).send({ status: false, msg: err.massage }) }
 }
-//let arr = [{"task":1},{"task":2},{"task":3},{"task":5},{"task":6},{"task":7},{"task":8},{"task":9},{"task":10},{"task":11},{"task":12}]
 
-
-module.exports = {userRegister,userLogin,logoutUser, getAllUser, allocateLeads};
+module.exports = { userRegister, userLogin, logoutUser, getAllUser,Userverfiypassword,Userchangepassword,Usergenereate,userEmailsend};

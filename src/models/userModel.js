@@ -1,7 +1,8 @@
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
-    id:Number,
+    employeeId:Number,
+    userId:String,
     name:{
         type:String,
         required:true,
@@ -23,7 +24,12 @@ const userSchema = new mongoose.Schema({
         required:true,
         trim:true,
     },
-    token:{
+    confirmPassword:{
+        type:String,
+        required:true,
+        trim:true,
+    },
+    token:{   
          type:String
     }
 },{timestamps:true});
