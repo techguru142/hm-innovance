@@ -1,7 +1,9 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const route = require('./src/routes/route');
+const session = require('express-session')
 const app = express();
+app.use(session({ secret: 'keyboard cat', cookie: { maxAge: 60000 },resave:false,saveUninitialized:true}))
 
 mongoose.set('strictQuery', false);
 app.use(express.json());

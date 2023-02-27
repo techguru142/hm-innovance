@@ -16,8 +16,7 @@ const allocateLeads = async (req, res) => {
         let obj = {
             name: ele.name,
             email: ele.email.toLowerCase(),
-            contact:ele.contact,
-            message: ele.message
+            contact:ele.contact
         }
         arr.push(obj)
 
@@ -36,46 +35,51 @@ const allocateLeads = async (req, res) => {
     let restLeads = numberOfTask - calculatedLeads
     let condition = Math.max(numberOfEmp,numberOfTask)
     var currEmpId = 0;
-   for(let i =0; i < condition; i++){
     
+   for(let i =0; i < condition; i++){
     let verifyEmpId = employies.map((ele)=>{
         if(ele.employeeId == currEmpId) return true
     })
     if(verifyEmpId.includes(true)){
         if(numberOfTask < numberOfEmp){
            await Leads.create({
-            employeeId:currEmpId,
-                assignTo:arr[currEmpId].name,
+                employeeId:currEmpId,
+                userName:employies[currEmpId].userName,
+                assignTo:employies[currEmpId].name,
                 tasks:[arr[i]]
             })
             currEmpId++;
         }else if(calculatedLeads < numberOfTask){
             await Leads.create({
                 employeeId:currEmpId,
-                assignTo:arr[currEmpId].name,
+                userName:employies[currEmpId].userName,
+                assignTo:employies[currEmpId].name,
                 tasks:[arr[i]]
             })
            if(i == splitedLeads){
             currEmpId++
            }
         }else{
+            if(i == splitedLeads){
+                currEmpId++
+               }
               await Leads.create({
                 employeeId:currEmpId,
-                assignTo:arr[currEmpId].name,
+                userName:employies[currEmpId].userName,
+                assignTo:employies[currEmpId].name,
                 tasks:[arr[i]]
             })
-            if(i == splitedLeads){
-            currEmpId++
-           }
+            
         }
     }
    };
    if(restLeads){
-    for(let i =arr.length - 1; i >= restLeads; i--){
+    for(let i =arr.length - 1; i >= arr.length - restLeads; i--){
         let vid = 0
         await Leads.create({
             employeeId:vid,
-            assignTo:arr[i].name,
+            userName:employies[currEmpId].userName,  
+            assignTo:employies[currEmpId].name,
             tasks:[arr[i]]
         })
         vid++
@@ -94,7 +98,8 @@ const reAllocateLeads = async (req, res) => {
         const employeeId = req.params.id
         //let employeeName = req.body.employeeName
         const { name, email, contact } = taskData;
-        const employeeData = await Users.findOne({id:employeeId});
+        const employeeData = await Users.findOne({employeeId:employeeId});
+
         if(!employeeData) return res.status(400).send({status:false, message:"Incorrect Employee id"})
         let newLeads = {
             employeeId:employeeId,
@@ -110,6 +115,46 @@ const reAllocateLeads = async (req, res) => {
     }
 };
 
+// reassign leads to an employee
+const reAssignLeads = async(req,res)=>{
+const {assignTo, name, email, contact,message, employeeId, userName} = req.body
+if(!assignTo || !name || !email || !contact || !message || !userName){
+    return res.status(400).send({status:false, message:"leads information is missing!"})
+}
+let empInfo = await Users.findOne({userName:userName});
+await Leads.create({
+    employeeId:empInfo.employeeId,
+    userName: empInfo.userName,
+    assignTo: empInfo.name,
+    tasks:[{
+        "name": name,
+        "email":email,
+        "contact": contact,
+        "message": message
+    }]
+});
+ await Leads.findOneAndUpdate({employeeId:employeeId, "tasks.email":email}, {isDeleted:true})
+
+res.status(200).send({status: true, message:"Thank you! for leads reassigning"})
+}
+// get all leads
+const getAllLeads = async(req,res)=>{
+    let data = await Leads.find({isDeleted:false})
+    let modifiedLeads = []
+    data.map((ele)=>{
+        let newObj={
+            employeeId:ele.employeeId,
+            assignTo:ele.assignTo,
+            name:ele.tasks[0].name,
+            contact:ele.tasks[0].contact,
+            message:ele.tasks[0].message
+        }
+        modifiedLeads.push(newObj)
+    })
+    res.send(modifiedLeads)
+}
+
+// get lattest leads
 const getLeads = async(req,res)=>{
     var leadsData = await Leads.find({isDeleted:false}).sort({updatedAt:-1})
     var arr = leadsData
@@ -126,6 +171,7 @@ const getLeads = async(req,res)=>{
 }
     res.status(200).send({status:true, result})
 }
+//  get leads by status
 const leadsStatus = async(req,res)=>{
     let status = req.params.status
     if(!status) return res.status(400).send({status:false, message:"Status is required"})
@@ -135,7 +181,7 @@ const leadsStatus = async(req,res)=>{
     }
     return res.status(200).send({status:true, leadsStatus});
 };
-   
+//get single leads by client email
 const getSingleLeads = async(req, res)=>{
     const clientEmail = req.body.email
     const leads = await Leads.find({["tasks.email"]:clientEmail}).select({employeeId:1, assignTo:1, status:1,tasks:1, _id:0})
@@ -155,7 +201,7 @@ const updateStatus = async(req,res)=>{
     const updatedStatus = await Leads.findOneAndUpdate({employeeId:employeeId, [tasks[0].email]:req.body.email}, {status:req.body.status},{new:true})
     res.status(200).send({status:true, message:"Status updated successfully"});
 };
-
+// Delete leads by admin
 const deleteLeads = async(req,res)=>{
     let employeeId = req.body.id
     let email = req.body.email
@@ -165,4 +211,6 @@ const deleteLeads = async(req,res)=>{
 
 
 
-module.exports = { allocateLeads, reAllocateLeads,getLeads,getSingleLeads,getLeadsByEmployeeId, leadsStatus,updateStatus,deleteLeads}
+module.exports = { allocateLeads, reAllocateLeads,reAssignLeads,getAllLeads,getLeads,getSingleLeads,getLeadsByEmployeeId, leadsStatus,updateStatus,deleteLeads}
+
+

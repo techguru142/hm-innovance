@@ -1,10 +1,14 @@
 const Users = require('../models/userModel')
 const Admin = require('../models/adminModel');
-
 const bcrypt = require('bcrypt');
 const cookie = require('cookie');
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
+const express = require('express')
+var session = require('express-session')
+
+const app = express()
+app.use(session({ secret: 'keyboard cat', cookie: { maxAge: 60000 },resave:false,saveUninitialized:true}))
 
 
 
@@ -19,9 +23,12 @@ const isEmail = function (email) {
     return false;
 }
 const userRegister = async (req, res) => {
-    try {
-        const userInfo = req.body
-        const { name, email, mobile, password } = userInfo
+    //try {
+        const userInfo = req.body;
+        let employeeId
+        let lastId = await Users.find().count()
+        employeeId = lastId
+        const {userName, name, email, mobile, password, confirmPassword} = userInfo
 
         if (Object.keys(req.body).length == 0) return res.status(400).send({ status: false, msg: "please enter a data in request body" })
 
@@ -59,12 +66,12 @@ const userRegister = async (req, res) => {
         //-----------[Password encryption]
         const bcryptPassword = await bcrypt.hash(password, 10)
         userInfo.password = bcryptPassword
-
-        const saveduserInfo = await Users.create(userInfo)
+        userInfo.confirmPassword = bcryptPassword
+        const saveduserInfo = await Users.create({...userInfo, employeeId:employeeId})
         res.status(200).send({ status: true, saveduserInfo })
-    } catch (err) {
-        return res.status(500).send({ status: false, error: err.message })
-    }
+    // } catch (err) {
+    //     return res.status(500).send({ status: false, error: err.message })
+    // }
 }
 
 
@@ -86,17 +93,7 @@ const userLogin=async(req,res)=>{
                 }
               
                 const token = jwt.sign(data, jwtSecretKey);
-            //   res.cookie("token",token)
-
-
-             // req.session.token =token;
-            // let setinsessons=req.session.token
-           //  console.log(setinsessons)
-          //   console.log(setinsessons)
-         // req.session.save();
-             // sessionStorage.setItem('token',token);
-
-            
+               res.cookie("token",token)
                 res.send({
                     name:validUser.name,
                     email:validUser.email,
@@ -131,9 +128,10 @@ const getAllUser = async (req, res) => {
 }
 
 const userEmailsend=async (req,res)=>{
-    let email=req.body.eamil;
-    let data=await Users.findOne({ email: email })
-
+    try{
+    let email=req.body.email;
+    req.session("email")
+    let data=await Users.findOne({email:email })
     if(!data){
      return res.status(400).send({ status: false, msg: "Plz enter valid email ID" })
     }
@@ -141,15 +139,13 @@ const userEmailsend=async (req,res)=>{
     var transporter = nodemailer.createTransport({
      service: 'gmail',
      auth: {
-       user: "pspkbabul@gmail.com",
-       pass: "lfohzyyhxncujpbl"
+        user: "pspkbabul@gmail.com",
+        pass: "gvjjcwuibyyqijen"
      }
    });
    let otpnum= Math.floor(1000+Math.random()*9000)
     let addotp = await Users.findOneAndUpdate({email:email},{$set:{otp:otpnum}})
-    
- //    console.log(addotp)
- //   console.log(otp)
+
       var mailOptions = {
      from: "pspkbabul@gmail.com",
      to: "gurucharan@hminnovance.com",
@@ -165,6 +161,9 @@ const userEmailsend=async (req,res)=>{
       res.status(200).send(info)
      }
    });
+}catch(err){
+    return res.status(500).send({status:false, message:err.message})
+}
  }
 
 const Userverfiypassword = async (req, res) => {

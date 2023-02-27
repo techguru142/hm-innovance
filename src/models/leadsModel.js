@@ -4,6 +4,9 @@ const leadsSchema = new mongoose.Schema({
     employeeId: {
         type: Number
     },
+    userName:{
+        type:String
+    },
     assignTo: {
         type: String
     },

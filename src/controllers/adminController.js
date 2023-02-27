@@ -170,7 +170,6 @@ const adminreset = async (req, res) => {
 
 const admiemailsend = async (req, res) => {   
      let data=await adminModel.findOne({ email: req.body.email })
-
    if(!data){
     return res.status(400).send({ status: false, msg: "Plz enter valid email ID" })
    }
