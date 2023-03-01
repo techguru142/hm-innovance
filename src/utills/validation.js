@@ -22,9 +22,16 @@ const isValidPincode = function(num){
     return /^[0]?[6789]\d{9}$/.test(phone)
   }
 
-  const isValidEmail = function(Email) {
-    return  /^([A-Za-z0-9._]{3,}@[A-Za-z]{3,}[.]{1}[A-Za-z.]{2,6})+$/.test(Email)
-  }
+  // const isValidEmail = function(Email) {
+  //     return /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA]+(?:\.[a-zA-Z0-9-]+)*$/.test(Email) // return  /^([A-Za-z0-9._]{3,}@[A-Za-z]{3,}[.]{1}[A-Za-z.]{2,6})+$/.test(Email)
+  // }
+  const isValidEmail = (email) => {
+    return String(email)
+      .toLowerCase()
+      .match(
+        /^([a-zA-Z0-9_\.\-])+\@(([a-zA-Z\-])+\.)+([a-zA-Z0-9]{2,4})+$/
+      );
+  };
 
   const isValidPwd = function(Password)  {
     return /^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-]).{8,15}$/.test(Password)

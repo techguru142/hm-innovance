@@ -5,14 +5,15 @@ const leadsSchema = new mongoose.Schema({
         type: Number
     },
     userName:{
-        type:String
+        type:String,
     },
     assignTo: {
         type: String
     },
     status: {
         type: String,
-        default: "Accepted"
+        enum:["Allocated", "Pending", "Not Intrested", "Completed"],
+        default: "Allocated"
     },
     work: {
         type: String,

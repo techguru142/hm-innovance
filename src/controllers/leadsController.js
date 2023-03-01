@@ -1,106 +1,83 @@
 const Leads = require('../models/leadsModel');
 const Users = require('../models/userModel')
+const {isValid, isValidRequest,isValidName ,isValidPhone,isValidEmail,isValidPwd} = require('../utills/validation')
 
-
+  // Allocate leads to employee
 const allocateLeads = async (req, res) => {
     try {
-        let clientLeads = req.body.task
-    if(clientLeads.length ===0) return res.status(400).send({status:false, message:"Leads are empty"})
-    clientLeads.map((ele) => {
-        if(!ele.name || !ele.email || !ele.contact){
-            return res.status(400).send({status:false, message:"Client info is missing"})
-        }});
-
-    let arr = []
-    clientLeads.map((ele) => {
-        let obj = {
-            name: ele.name,
-            email: ele.email.toLowerCase(),
-            contact:ele.contact
+      const clientLeads = req.body.task;
+      if(!isValidRequest(req.body)){
+        return res.status(422).send({status:false, message:"Invalid! request"})
+      }
+      if (clientLeads.length === 0)
+        return res.status(400).send({ status: false, message: "Leads are empty" });
+  
+      const validClientLeads = clientLeads.filter(
+        (ele) => ele.name && ele.email && ele.contact && ele.message
+      );
+      if (validClientLeads.length !== clientLeads.length)
+        return res
+          .status(400)
+          .send({ status: false, message: "Client info is missing" });
+  
+      const arr = validClientLeads.map((ele) => ({
+        name: ele.name,
+        email: ele.email.toLowerCase(),
+        contact: ele.contact,
+        message: ele.message
+      }));
+  
+      const employees = await Users.find();
+      const numberOfEmployees = employees.length;
+      const numberOfLeads = arr.length;
+      const leadsPerEmployee = Math.floor(numberOfLeads / numberOfEmployees);
+      const remainingLeads = numberOfLeads % numberOfEmployees;
+      let leadsAssigned = 0;
+      for (let i = 0; i < numberOfEmployees; i++) {
+        const employee = employees[i];
+        const employeeLeads = await Leads.find({ employeeId: employee.employeeId });
+        const numberOfEmployeeLeads = employeeLeads.length;
+        let leadsToAssign = leadsPerEmployee - numberOfEmployeeLeads;
+        if (i < remainingLeads) leadsToAssign++;
+  
+        for (let j = 0; j < leadsToAssign; j++) {
+          await Leads.create({
+            employeeId: employee.employeeId,
+            userName: employee.userName,
+            assignTo: employee.name,
+            tasks: [arr[leadsAssigned]],
+          });
+          leadsAssigned++;
         }
-        arr.push(obj)
-
-     });
-
-    let employies = await Users.find()
-    let numberOfEmp = employies.length;
-    let numberOfTask = arr.length;
-    let splitedLeads 
-    if(numberOfEmp < numberOfTask){
-        splitedLeads = Math.floor(numberOfTask / numberOfEmp)
-    }else{
-        splitedLeads = Math.floor(numberOfEmp / numberOfTask)
-    }
-    let calculatedLeads = splitedLeads*numberOfEmp
-    let restLeads = numberOfTask - calculatedLeads
-    let condition = Math.max(numberOfEmp,numberOfTask)
-    var currEmpId = 0;
-    
-   for(let i =0; i < condition; i++){
-    let verifyEmpId = employies.map((ele)=>{
-        if(ele.employeeId == currEmpId) return true
-    })
-    if(verifyEmpId.includes(true)){
-        if(numberOfTask < numberOfEmp){
-           await Leads.create({
-                employeeId:currEmpId,
-                userName:employies[currEmpId].userName,
-                assignTo:employies[currEmpId].name,
-                tasks:[arr[i]]
-            })
-            currEmpId++;
-        }else if(calculatedLeads < numberOfTask){
-            await Leads.create({
-                employeeId:currEmpId,
-                userName:employies[currEmpId].userName,
-                assignTo:employies[currEmpId].name,
-                tasks:[arr[i]]
-            })
-           if(i == splitedLeads){
-            currEmpId++
-           }
-        }else{
-            if(i == splitedLeads){
-                currEmpId++
-               }
-              await Leads.create({
-                employeeId:currEmpId,
-                userName:employies[currEmpId].userName,
-                assignTo:employies[currEmpId].name,
-                tasks:[arr[i]]
-            })
-            
-        }
-    }
-   };
-   if(restLeads){
-    for(let i =arr.length - 1; i >= arr.length - restLeads; i--){
-        let vid = 0
-        await Leads.create({
-            employeeId:vid,
-            userName:employies[currEmpId].userName,  
-            assignTo:employies[currEmpId].name,
-            tasks:[arr[i]]
-        })
-        vid++
-    }
-   }
-   let leadsData = await Leads.find().sort({createdAt:1});
-    return res.status(200).send({ status: true, leadsData })
+      }
+  
+      const leadsData = await Leads.find().sort({ createdAt: 1 });
+      return res.status(200).send({ status: true, leads:leadsData });
     } catch (error) {
-        return res.status(500).send({status:false, Error:error.message})
+      return res.status(500).send({ status: false, Error: error.message });
     }
-}
+  };
+
 
 const reAllocateLeads = async (req, res) => {
     try {
-        const taskData = req.body;
-        const employeeId = req.params.id
-        //let employeeName = req.body.employeeName
-        const { name, email, contact } = taskData;
+        const employeeId = req.params.employeeId
+        const { name, email, contact } = req.body;
+        if(!employeeId){
+            return res.status(400).send({status:false, message:"Invalid params"})
+        }else if(isNaN){
+            return res.status(422).send({status:false, message:"Invalid employee id"})
+        }else if(!name || !email || !contact){
+            return res.status(400).send({status:false, message:"Required fileds are missing"})
+        }else if(!isValid(name) || !isValidName(name)){
+            return res.status(422).send({status:false, message:"Invalid!  name"})
+        }else if(!isValidEmail(email)){
+            return res.status(422).send({status:false, message:"clients Email is invalid!"})
+        }else if(!isValidPhone(contact)){
+            return res.status(422).send({status:false, message:"Invalid! phone number"})
+        }
         const employeeData = await Users.findOne({employeeId:employeeId});
-
-        if(!employeeData) return res.status(400).send({status:false, message:"Incorrect Employee id"})
+        if(!employeeData) return res.status(404).send({status:false, message:"Employee not found for this id"})
         let newLeads = {
             employeeId:employeeId,
             assignTo:employeeData.name,
@@ -121,7 +98,23 @@ const {assignTo, name, email, contact,message, employeeId, userName} = req.body
 if(!assignTo || !name || !email || !contact || !message || !userName){
     return res.status(400).send({status:false, message:"leads information is missing!"})
 }
+if(!isValid(assignTo) || isValidName(assignTo)){
+return res.status(422).send({status:false, message:"Invalid! Employee Name"})
+}else if(!isValid(name) || !isValidName(name)){
+    return res.status(422).send({status:false, message:"Invalid! Client name"})
+}else if(!isValidEmail(email)){
+    return res.status(422).send({status:false, message:"Invalid! email"})
+}else if(!isValidPhone(contact)){
+    return res.status(422).send({status:false, message:"Invalid phone number"})
+}else if(isNaN(employeeId)){
+    return res.status(422).send({status:false, message:"Employee id should be number only"})
+}else if(typeof userName !== "String"){
+    return res.status(422).send({status:false, message:"Invalid userName"})
+}
 let empInfo = await Users.findOne({userName:userName});
+if(!empInfo){
+    return res.status(422).send({status:false, message:"Invalid! userName"})
+}
 await Leads.create({
     employeeId:empInfo.employeeId,
     userName: empInfo.userName,
@@ -146,12 +139,13 @@ const getAllLeads = async(req,res)=>{
             employeeId:ele.employeeId,
             assignTo:ele.assignTo,
             name:ele.tasks[0].name,
+            email:ele.tasks[0].email,
             contact:ele.tasks[0].contact,
             message:ele.tasks[0].message
         }
         modifiedLeads.push(newObj)
     })
-    res.send(modifiedLeads)
+    res.status(200).send({status:true, leads:modifiedLeads})
 }
 
 // get lattest leads
@@ -169,48 +163,73 @@ const getLeads = async(req,res)=>{
         continue;
     }
 }
-    res.status(200).send({status:true, result})
+    res.status(200).send({status:true, leads:result})
 }
 //  get leads by status
-const leadsStatus = async(req,res)=>{
+const getLeadsByStatus = async(req,res)=>{
     let status = req.params.status
     if(!status) return res.status(400).send({status:false, message:"Status is required"})
+    if(!["Allocated", "Pending", "Not Intrested", "Completed"].includes(status) || !isValid(status)){
+        return res.status(422).send({status:false, message:"Invalid! Status"})
+    }
     const leadsStatus = await Leads.find({status:status, isDeleted:false}).select({createdAt:0, updatedAt:0, __v:0, _id:0});
-    if(!leadsStatus){
+    if(leadsStatus.length === 0){
       return  res.status(200).send('Leads not found!')
     }
-    return res.status(200).send({status:true, leadsStatus});
+    return res.status(200).send({status:true, leads:leadsStatus});
 };
 //get single leads by client email
-const getSingleLeads = async(req, res)=>{
-    const clientEmail = req.body.email
-    const leads = await Leads.find({["tasks.email"]:clientEmail}).select({employeeId:1, assignTo:1, status:1,tasks:1, _id:0})
-    res.status(200).send(leads)
-};
+// const getSingleLeads = async(req, res)=>{
+//     const clientEmail = req.body.email
+//     const leads = await Leads.find({["tasks.email"]:clientEmail, isDeleted:false}).select({employeeId:1, assignTo:1, status:1,tasks:1, _id:0})
+//     res.status(200).send({status:true, leads:leads})
+// };
 
-const getLeadsByEmployeeId = async(req,res)=>{
-    const empId = req.body.id
-    const empLeads = await Leads.find({employeeId:empId})
-    res.status(200).send({status:true, empLeads})
-}
+// const getLeadsByEmployeeId = async(req,res)=>{
+//     const empId = req.body.id
+//     const empLeads = await Leads.find({employeeId:empId})
+//     res.status(200).send({status:true, empLeads})
+// }
 
-const updateStatus = async(req,res)=>{
-    const employeeId = req.body.id
-    if(!employeeId) return res.status(400).send({status:false, message:"Employee id is required"})
+const updateLeadsStatus = async(req,res)=>{
+    const {employeeId, email, status} = req.body
+    if(!employeeId && employeeId !==0) return res.status(400).send({status:false, message:"Employee id is required"})
     if(isNaN(employeeId)) return res.status(400).send({status:false, message:"Id should be number only"})
-    const updatedStatus = await Leads.findOneAndUpdate({employeeId:employeeId, [tasks[0].email]:req.body.email}, {status:req.body.status},{new:true})
-    res.status(200).send({status:true, message:"Status updated successfully"});
+    if(!email || !status){
+        return res.status(422).send({status:false, message:"Email and status are required to update"})
+    }
+    if(!isValidEmail(email)){
+        return res.status(422).send({status:false, message:"Invalid! email"})
+    }
+    if(!["Pending", "Not Intrested", "Completed"].includes(status) || !isValid(status)){
+        return res.status(422).send({status:false, message:"Invalid! Status"})
+    }
+    
+    const updatedStatus = await Leads.findOneAndUpdate({employeeId:employeeId, 'tasks.email':email}, {$set:{status:status}})
+    if(!updateStatus){
+        return res.status(404).send({status:false, message:"Leads not found"})
+    }
+    res.status(200).send({status:true, message:"Status updated successfully",updatedStatus});
 };
 // Delete leads by admin
 const deleteLeads = async(req,res)=>{
-    let employeeId = req.body.id
-    let email = req.body.email
-    await Leads.findByIdAndUpdate({employeeId:employeeId,"tasks.email":email}, {isDeleted:true})
+    const {employeeId, email} = req.body
+    if(!employeeId || !email){
+        return res.status(422).send({status:false, message:"employee id and email are required!"})
+    }else if(isNaN(employeeId)){
+        return res.status(422).send({status:false, message:"Invalid! employee id"})
+    }else if(!isValidEmail(email)){
+        return res.status(422).send({status:false, message:"Invalid email"})
+    }
+   let deletedLeads =  await Leads.findByOneAndUpdate({employeeId:employeeId,"tasks.email":email}, {isDeleted:true})
+   if(!deletedLeads){
+    return res.status(404).send({status:false, message:"Leads not found"})
+   }
     res.status(200).send({status:true, message:"Leads deleted successfully!"})
 };
 
 
 
-module.exports = { allocateLeads, reAllocateLeads,reAssignLeads,getAllLeads,getLeads,getSingleLeads,getLeadsByEmployeeId, leadsStatus,updateStatus,deleteLeads}
+module.exports = { allocateLeads, reAllocateLeads,reAssignLeads,getAllLeads,getLeads, getLeadsByStatus,updateLeadsStatus,deleteLeads}
 
 
