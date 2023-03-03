@@ -23,10 +23,10 @@ router.post('/sendOtp',admiemailsend )
 router.post('/leads',authentication, authorisation, allocateLeads);
 router.post('/reAllocate/:employeeId',authentication, authorisation, reAllocateLeads);
 router.post('/reAssignLeads',authentication, authorisation, reAssignLeads );
-router.get('/getAllLeads',authentication, authorisation, getAllLeads)
+router.get('/getAllLeads',authentication, authorisation, getAllLeads);
 router.get('/getLeads',authentication, authorisation, getLeads);
 router.get('/leads/:status',authentication, authorisation, getLeadsByStatus);
-router.put('/updateStatus/',authentication, authorisation, updateLeadsStatus)
+router.put('/updateStatus',authentication, authorisation, updateLeadsStatus);
 
 
 module.exports = router;

@@ -2,7 +2,11 @@ const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
     employeeId:Number,
-    userName:String,
+    userName:{
+        type:String,
+        required:true,
+        trim:true
+    },
     name:{
         type:String,
         required:true,

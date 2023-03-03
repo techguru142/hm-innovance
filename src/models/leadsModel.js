@@ -2,16 +2,23 @@ const mongoose = require('mongoose');
 
 const leadsSchema = new mongoose.Schema({
     employeeId: {
-        type: Number
+        type: Number,
+        required:true,
+        trim:true
     },
     userName:{
         type:String,
+        required:true,
+        trim:true
     },
     assignTo: {
-        type: String
+        type: String,
+        required:true,
+        trim:true
     },
     status: {
         type: String,
+        trim:true,
         enum:["Allocated", "Pending", "Not Intrested", "Completed"],
         default: "Allocated"
     },
@@ -24,7 +31,8 @@ const leadsSchema = new mongoose.Schema({
         default: null
     },
     tasks: {
-        type: []
+        type: [],
+        trim:true
     },
     isDeleted:{
         type:Boolean,

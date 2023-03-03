@@ -33,6 +33,7 @@ const allocateLeads = async (req, res) => {
         const leadsPerEmployee = Math.floor(numberOfLeads / numberOfEmployees);
         const remainingLeads = numberOfLeads % numberOfEmployees;
         let leadsAssigned = 0;
+        let createLeads = []
         for (let i = 0; i < numberOfEmployees; i++) {
             const employee = employees[i];
             const employeeLeads = await Leads.find({ employeeId: employee.employeeId });
@@ -41,18 +42,19 @@ const allocateLeads = async (req, res) => {
             if (i < remainingLeads) leadsToAssign++;
 
             for (let j = 0; j < leadsToAssign; j++) {
-                await Leads.create({
+               let savedData = await Leads.create({
                     employeeId: employee.employeeId,
                     userName: employee.userName,
                     assignTo: employee.name,
                     tasks: [arr[leadsAssigned]],
                 });
+                createLeads.push(savedData)
                 leadsAssigned++;
             }
         }
 
         const leadsData = await Leads.find().sort({ createdAt: 1 });
-        return res.status(200).send({ status: true, leads: leadsData });
+        return res.status(200).send({ status: true, leads: createLeads });
     } catch (error) {
         return res.status(500).send({ status: false, Error: error.message });
     }
@@ -65,7 +67,7 @@ const reAllocateLeads = async (req, res) => {
         const { name, email, contact } = req.body;
         if (!employeeId) {
             return res.status(400).send({ status: false, message: "Invalid params" })
-        } else if (isNaN) {
+        } else if (isNaN(employeeId)) {
             return res.status(422).send({ status: false, message: "Invalid employee id" })
         } else if (!name || !email || !contact) {
             return res.status(400).send({ status: false, message: "Required fileds are missing" })
@@ -187,7 +189,7 @@ const getLeadsByStatus = async (req, res) => {
     }
     const leadsStatus = await Leads.find({ status: status, isDeleted: false }).select({ createdAt: 0, updatedAt: 0, __v: 0, _id: 0 });
     if (leadsStatus.length === 0) {
-        return res.status(200).send('Leads not found!')
+        return res.status(200).send({status:false, message:'Leads not found!'})
     }
     return res.status(200).send({ status: true, leads: leadsStatus });
     } catch (error) {
@@ -223,10 +225,10 @@ const updateLeadsStatus = async (req, res) => {
     }
 
     const updatedStatus = await Leads.findOneAndUpdate({ employeeId: employeeId, 'tasks.email': email }, { $set: { status: status } })
-    if (!updateStatus) {
+    if (!updatedStatus) {
         return res.status(404).send({ status: false, message: "Leads not found" })
     }
-    res.status(200).send({ status: true, message: "Status updated successfully", updatedStatus });
+    res.status(200).send({ status: true, message: "Status updated successfully"});
    } catch (error) {
     return res.status(500).send({ status: false, Error: error.message })
    }
